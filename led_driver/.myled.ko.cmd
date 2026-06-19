@@ -1,0 +1,1 @@
+cmd_/home/tamle/Workspace/led_driver/myled.ko := arm-linux-gnueabihf-ld -r -EL -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/tamle/Workspace/led_driver/myled.ko /home/tamle/Workspace/led_driver/myled.o /home/tamle/Workspace/led_driver/myled.mod.o;  true
