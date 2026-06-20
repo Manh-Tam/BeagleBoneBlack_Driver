@@ -12,6 +12,11 @@
 #define LED_GPIO			60
 #define RECEIVED_DATA_LEN	10
 
+#define MY_MAGIC        'L'
+#define LED_ON          _IO(MY_MAGIC, 0)
+#define LED_OFF         _IO(MY_MAGIC, 1)
+#define LED_TOGGLE      _IO(MY_MAGIC, 2)
+
 static dev_t dev_num;
 static struct cdev my_led;
 static struct class *led_class;
@@ -81,6 +86,35 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t count,
 	return count;
 }
 
+static long my_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	pr_info("Received command: %d\n", cmd);
+	switch (cmd)
+	{
+		case LED_ON:
+			gpio_set_value(LED_GPIO, 1);
+			break;
+		case LED_OFF:
+			gpio_set_value(LED_GPIO, 0);
+			break;
+		case LED_TOGGLE:
+			int value = gpio_get_value(LED_GPIO);
+			if (value < 0)
+			{
+				return -EFAULT;
+			}
+			else
+			{
+				pr_info("toggle value: %d\n", value);
+				gpio_set_value(LED_GPIO, !value);
+			}
+			break;
+		default:
+			return -EINVAL;
+	}
+	return 0;
+}
+
 static struct file_operations fops = 
 {
 	.owner = THIS_MODULE,
@@ -88,6 +122,7 @@ static struct file_operations fops =
 	.release = my_release,
 	.write = my_write,
 	.read = my_read,
+	.unlocked_ioctl = my_ioctl,
 };
 
 static int __init myled_init(void)
@@ -142,7 +177,7 @@ static int __init myled_init(void)
 		pr_err("Failed to set dirrection\n");
 		return ret;
 	}
-	led_state = 1;
+	led_state = 0;
 	pr_info("My led initialized successfully\n");
 	return ret;
 }
