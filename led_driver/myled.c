@@ -7,7 +7,10 @@
 #include <linux/gpio.h>
 #include <linux/uaccess.h>
 
-#define LED_GPIO		60
+#include <linux/string.h>
+
+#define LED_GPIO			60
+#define RECEIVED_DATA_LEN	10
 
 static dev_t dev_num;
 static struct cdev my_led;
@@ -36,23 +39,33 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t
 	}
 	data[0] = led_state? '1' : '0';
 	data[1] = '\n';
-	if (copy_to_user(buf, &led_state, 2))
+	if (copy_to_user(buf, data, 2))
 	{
 		pr_err("Failed to copy to user\n");
 		return -EFAULT;
 	}
-	return 0;
+	*ppos += 2;
+	return *ppos;
 }
 
 static ssize_t my_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	char value;
-	if (copy_from_user(&value, buf, 1))
+	char kbuf[RECEIVED_DATA_LEN];
+	if (count >= RECEIVED_DATA_LEN)
+	{
+		pr_err("Invalid data length\n");
+		return -EFAULT;
+	}
+	if (copy_from_user(kbuf, buf, count))
 	{
 		pr_err("Failed to copy from user\n");
 		return -EFAULT;
 	}
-	if ('1' == value)
+	kbuf[count] = '\0';
+	if (count > 0 && kbuf[count-1] == '\n')
+		kbuf[count-1] = '\0';
+
+	if (0 == strcmp(kbuf, "on"))
 	{
 		gpio_set_value(LED_GPIO, 1);
 		led_state = 1;
@@ -61,9 +74,10 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t count,
 	{
 		gpio_set_value(LED_GPIO, 0);
 		led_state = 0;
+		return -EINVAL;
 	}
 
-	pr_info("Received: %c\n", value);
+	pr_info("Received: %s\n", kbuf);
 	return count;
 }
 
