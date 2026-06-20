@@ -1,1 +1,0 @@
-cmd_/home/tamle/Workspace/led_driver/Module.symvers := sed 's/ko$$/o/' /home/tamle/Workspace/led_driver/modules.order | scripts/mod/modpost -m    -o /home/tamle/Workspace/led_driver/Module.symvers -e    -T -

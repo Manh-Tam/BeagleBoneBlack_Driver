@@ -7,25 +7,40 @@
 #include <linux/gpio.h>
 #include <linux/uaccess.h>
 
+#define LED_GPIO		60
+
 static dev_t dev_num;
 static struct cdev my_led;
 static struct class *led_class;
+static int led_state;
 
 static int my_open(struct inode *inode, struct file *file)
 {
-	printk("Opened\n");
+	pr_info("Opened\n");
 	return 0;
 }
 
 static int my_release(struct inode *inode, struct file *file)
 {
-	printk("Released\n");
+	pr_info("Released\n");
 	return 0;
 }
 
 static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	printk("Read\n");
+	char data[2] = {0};
+	pr_info("Read\n");
+	if (*ppos > 0)
+	{
+		return 0;
+	}
+	data[0] = led_state? '1' : '0';
+	data[1] = '\n';
+	if (copy_to_user(buf, &led_state, 2))
+	{
+		pr_err("Failed to copy to user\n");
+		return -EFAULT;
+	}
 	return 0;
 }
 
@@ -39,14 +54,16 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t count,
 	}
 	if ('1' == value)
 	{
-		gpio_set_value(60, 1);
+		gpio_set_value(LED_GPIO, 1);
+		led_state = 1;
 	}
 	else
 	{
-		gpio_set_value(60, 0);
+		gpio_set_value(LED_GPIO, 0);
+		led_state = 0;
 	}
 
-	printk("Received: %c\n", value);
+	pr_info("Received: %c\n", value);
 	return count;
 }
 
@@ -94,19 +111,25 @@ static int __init myled_init(void)
 		ret = -2;
 		return ret;
 	}
-	ret = gpio_request(60, "my_led");
+	if (!gpio_is_valid(LED_GPIO))
+	{
+		pr_err("Invalid GPIO %d\n", LED_GPIO);
+		return -EINVAL;
+	}
+	ret = gpio_request(LED_GPIO, "my_led");
 	if (ret)
 	{
 		pr_err("Failed to request gpio\n");
 		return ret;
 	}
-	ret = gpio_direction_output(60, 0);
+	ret = gpio_direction_output(LED_GPIO, 0);
 	if (ret)
 	{
 		pr_err("Failed to set dirrection\n");
 		return ret;
 	}
-	printk("My led initialized successfully\n");
+	led_state = 1;
+	pr_info("My led initialized successfully\n");
 	return ret;
 }
 
@@ -116,8 +139,8 @@ static void __exit myled_exit(void)
 	class_destroy(led_class);
 	cdev_del(&my_led);
 	unregister_chrdev_region(dev_num, 1);
-	gpio_free(60);
-	printk("exit my led\n");
+	gpio_free(LED_GPIO);
+	pr_info("exit my led\n");
 }
 
 
