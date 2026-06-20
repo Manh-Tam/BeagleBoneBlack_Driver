@@ -11,7 +11,7 @@ static dev_t dev_num;
 static struct cdev button;
 static struct class *button_class;
 
-#define BUTTON_GPIO     67
+#define BUTTON_GPIO     67  /* P8_8 */
 
 static int my_open(struct inode *inode, struct file *file)
 {
