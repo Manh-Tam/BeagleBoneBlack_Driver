@@ -5,4 +5,4 @@ Add a gpio driver to control P912 aka GPIO60 on the BBB.
 6/20/2026
 Add a button driver to control P8_8 aka GPIO67 on the BBB.
 6/21/2026
-Add a gpio interrupt
+Add a gpio interrupt, blocking read, poll/select
