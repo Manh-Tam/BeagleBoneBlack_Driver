@@ -178,6 +178,7 @@ static int __init button_init(void)
 
 static void __exit button_exit(void)
 {
+    gpio_free(BUTTON_GPIO);
     device_destroy(button_class, dev_num);
     class_destroy(button_class);
     cdev_del(&button);
