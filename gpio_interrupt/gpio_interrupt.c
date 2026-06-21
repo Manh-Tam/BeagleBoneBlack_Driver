@@ -55,18 +55,19 @@ struct file_operations fops =
 static int __init gpio_interrupt_init(void)
 {
     int ret = -1;
-    struct device *device = NULL;
+    struct device *my_device = NULL;
     ret = alloc_chrdev_region(&dev_num, 0, 1, "dev_num");
     if (ret < 0)
     {
-        pr_err("alloc_chdev_region failed: %d", ret);
+        pr_err("alloc_chrdev_region failed: %d\n", ret);
         return ret;
     }
     cdev_init(&cdev, &fops);
     ret = cdev_add(&cdev, dev_num, 1);
     if (ret < 0)
     {
-        pr_err("cdev_init failed: %d", ret);
+        unregister_chrdev_region(dev_num, 1);
+        pr_err("cdev_add failed: %d", ret);
         return ret;
     }
     
@@ -74,13 +75,18 @@ static int __init gpio_interrupt_init(void)
     if (IS_ERR(my_class))
     {
         ret = PTR_ERR(my_class);
+        cdev_del(&cdev);
+        unregister_chrdev_region(dev_num, 1);
         pr_err("class_create failed: %d\n", ret);
         return ret;
     }
-    device = device_create(my_class, NULL, dev_num, NULL, "gpio_interrupt");
-    if (IS_ERR(device))
+    my_device = device_create(my_class, NULL, dev_num, NULL, "gpio_interrupt");
+    if (IS_ERR(my_device))
     {
-        ret = PTR_ERR(device);
+        ret = PTR_ERR(my_device);
+        class_destroy(my_class);
+        cdev_del(&cdev);
+        unregister_chrdev_region(dev_num, 1);
         pr_err("device_create failed: %d\n", ret);
         return ret;
     }
@@ -90,22 +96,56 @@ static int __init gpio_interrupt_init(void)
     }
     else
     {
+        device_destroy(my_class, dev_num);
+        class_destroy(my_class);
+        cdev_del(&cdev);
+        unregister_chrdev_region(dev_num, 1);
         pr_err("gpio_is_valid failed\n");
-        return -1;
+        return -EINVAL;
     }
     if (ret < 0)
     {
+        device_destroy(my_class, dev_num);
+        class_destroy(my_class);
+        cdev_del(&cdev);
+        unregister_chrdev_region(dev_num, 1);
         pr_err("gpio_request failed: %d\n", ret);
         return ret;
     }
     ret = gpio_direction_input(GPIO_NUM);
     if (ret < 0)
     {
+        gpio_free(GPIO_NUM);
+        device_destroy(my_class, dev_num);
+        class_destroy(my_class);
+        cdev_del(&cdev);
+        unregister_chrdev_region(dev_num, 1);
         pr_err("gpio_direction_input failed: %d\n", ret);
         return ret;
     }
     irq = gpio_to_irq(GPIO_NUM);
+    if (irq < 0)
+    {
+        ret = irq;
+        gpio_free(GPIO_NUM);
+        device_destroy(my_class, dev_num);
+        class_destroy(my_class);
+        cdev_del(&cdev);
+        unregister_chrdev_region(dev_num, 1);
+        pr_err("gpio_to_irq failed: %d\n", ret);
+        return ret;
+    }
     ret = request_irq(irq, button_irq_handler, IRQF_TRIGGER_FALLING, "button handler", NULL);
+    if (ret < 0)
+    {
+        gpio_free(GPIO_NUM);
+        device_destroy(my_class, dev_num);
+        class_destroy(my_class);
+        cdev_del(&cdev);
+        unregister_chrdev_region(dev_num, 1);
+        pr_err("request_irq failed: %d\n", ret);
+        return ret;
+    }
     pr_info("GPIO interrupt initialized\n");
     return 0;
 }
