@@ -35,7 +35,12 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t
 
 static irqreturn_t button_irq_handler(int irq, void *dev_id)
 {
-    pr_info("Button pressed\n");
+    static unsigned long last_interrupt = 0;
+    if (jiffies_to_msecs(jiffies) >= last_interrupt + 20)
+    {
+        pr_info("Button pressed\n");
+        last_interrupt = jiffies_to_msecs(jiffies);
+    }
     return 0;
 }
 
