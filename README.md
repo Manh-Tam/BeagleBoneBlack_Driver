@@ -4,3 +4,5 @@ Hi everyone, welcome to my repository. I am eager to learn embedded Linux, so I 
 Add a gpio driver to control P912 aka GPIO60 on the BBB.
 6/20/2026
 Add a button driver to control P8_8 aka GPIO67 on the BBB.
+6/21/2026
+Add a gpio interrupt
