@@ -184,11 +184,11 @@ static int __init myled_init(void)
 
 static void __exit myled_exit(void)
 {
+	gpio_free(LED_GPIO);
 	device_destroy(led_class, dev_num);
 	class_destroy(led_class);
 	cdev_del(&my_led);
 	unregister_chrdev_region(dev_num, 1);
-	gpio_free(LED_GPIO);
 	pr_info("exit my led\n");
 }
 
