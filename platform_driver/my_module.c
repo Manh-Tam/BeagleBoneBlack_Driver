@@ -8,6 +8,21 @@
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 
+#include <linux/fs.h>
+#include <linux/cdev.h>
+#include <linux/device.h>
+
+
+struct led
+{
+    dev_t dev_num;
+    struct cdev cdev;
+    struct class *class;
+    int led_gpio;
+};
+
+static struct led my_led;
+
 static const struct of_device_id my_of_match[] = {
     {
         .compatible = "tam,my-led",
@@ -17,48 +32,97 @@ static const struct of_device_id my_of_match[] = {
     }
 };
 
+static int my_open(struct inode *inode, struct file *file)
+{
+    pr_info("my_open called\n");
+    return 0;
+}
+
+static int my_release(struct inode *inode, struct file *file)
+{
+    pr_info("my_relase called\n");
+    return 0;
+}
+
+static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+    gpio_set_value(my_led.led_gpio, 0);
+    pr_info("my_read called\n");
+    return 0;
+}
+
+static ssize_t my_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{
+    gpio_set_value(my_led.led_gpio, 1);
+    pr_info("my_write called\n");
+    return count;
+}
+
+struct file_operations fops = 
+{
+    .owner = THIS_MODULE,
+    .open = my_open,
+    .release = my_release,
+    .read = my_read,
+    .write = my_write,
+};
+
 static int my_probe(struct platform_device *pdev)
 {
-    int ret = -1;
+    int ret = 0;
     struct device_node *np;
-    int led_gpio;
     pr_info("Device found!\n");
     np = pdev->dev.of_node;
-    led_gpio = of_get_named_gpio(np, "led-gpios", 0);
-    if (!gpio_is_valid(led_gpio))
+    my_led.led_gpio = of_get_named_gpio(np, "led-gpios", 0);
+
+    if (!gpio_is_valid(my_led.led_gpio))
     {
         pr_err("Invalid GPIO\n");
-        return -EINVAL;
+        ret = -EINVAL;
     }
-    else
+    
+    if (0 == ret)
     {
-        printk("GPIO num: %d\n", led_gpio);
-        ret = gpio_request(led_gpio, "myled");
-        if (ret)
+        printk("GPIO num: %d\n", my_led.led_gpio);
+        ret = gpio_request(my_led.led_gpio, "myled");
+    }
+
+    if (0 == ret)
+    {
+        ret = gpio_direction_output(my_led.led_gpio, 0);
+    }
+
+    if (0 == ret)
+    {
+        ret = alloc_chrdev_region(&my_led.dev_num, 0, 1, "myled");
+    }
+
+    if (0 == ret)
+    {
+        cdev_init(&my_led.cdev, &fops);
+        ret = cdev_add(&my_led.cdev, my_led.dev_num, 1);
+    }
+
+    if (0 == ret)
+    {
+        my_led.class = class_create(THIS_MODULE, "my_led");
+    }
+
+    if (0 == ret)
+    {
+        struct device *device = device_create(my_led.class, NULL, my_led.dev_num, NULL, "myled");
+        if (IS_ERR(device))
         {
-            pr_err("Failed to request gpio\n");
-            return ret;
-        }
-        else
-        {
-            ret = gpio_direction_output(led_gpio, 0);
-            if (ret)
-            {
-                pr_err("Failed to set gpio direction\n");
-                gpio_free(led_gpio);
-                return ret;
-            }
-            else
-            {
-                gpio_set_value(led_gpio, 1);
-            }
+            ret = PTR_ERR(device);
         }
     }
-    return 0;
+    return ret;
 }
 
 static int my_remove(struct platform_device *pdev)
 {
+    gpio_set_value(my_led.led_gpio, 0);
+    gpio_free(my_led.led_gpio);
     pr_info("Device removed\n");
     return 0;
 }
@@ -67,7 +131,7 @@ static struct platform_driver my_driver = {
     .probe = my_probe,
     .remove = my_remove,
     .driver = {
-        .name = "my_led",
+        .name = "llll",
         .of_match_table = my_of_match,
     },
 };

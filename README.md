@@ -12,3 +12,4 @@ modify device trees, learn platform drivers to control hardware with device tree
 
 6/27/2026
 successfully added a platform driver.
+use platform driver + character driver to control led
