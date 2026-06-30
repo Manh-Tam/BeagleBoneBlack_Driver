@@ -13,3 +13,14 @@ modify device trees, learn platform drivers to control hardware with device tree
 6/27/2026
 successfully added a platform driver.
 use platform driver + character driver to control led
+
+6/28/2026
+add a platform driver for multiple devices
+
+6/29/2026
+spend time reviewing what I've learned.
+kernel module -> device drivers -> platform drivers
+
+6/30/2026
+Use modern gpio APIs for platform drivers to control a GPIO.
+This approach hides the GPIO hardware number from users.
