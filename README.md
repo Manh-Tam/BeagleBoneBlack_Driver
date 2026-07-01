@@ -24,3 +24,7 @@ kernel module -> device drivers -> platform drivers
 6/30/2026
 Use modern gpio APIs for platform drivers to control a GPIO.
 This approach hides the GPIO hardware number from users.
+
+7/1/2026
+Add a device tree interrupt
+Control the interrupt through a platform driver.
