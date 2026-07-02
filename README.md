@@ -28,3 +28,6 @@ This approach hides the GPIO hardware number from users.
 7/1/2026
 Add a device tree interrupt
 Control the interrupt through a platform driver.
+
+7/2/2026
+Learned sysfs
