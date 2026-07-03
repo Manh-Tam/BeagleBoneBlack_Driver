@@ -31,3 +31,6 @@ Control the interrupt through a platform driver.
 
 7/2/2026
 Learned sysfs
+
+7/3/2026
+review my knowledge
