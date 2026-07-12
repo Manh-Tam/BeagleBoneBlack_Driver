@@ -1,0 +1,53 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "ti,am335x-bone-black";
+    /* Fragment 0: Free up the pins used by the cape from the pinmux helpers. */
+    fragment@0 {
+        target = <&ocp>;
+        __overlay__ {
+            P9_17_pinmux { status = "disabled"; };	/* P9_17 (A16) spi0_cs0.spi0_cs0 */
+            P9_18_pinmux { status = "disabled"; };	/* P9_18 (B16) spi0_d1.spi0_d1 */
+            P9_21_pinmux { status = "disabled"; };	/* P9_21 (B17) spi0_d0.spi0_d0 */
+            P9_22_pinmux { status = "disabled"; };	/* P9_22 (A17) spi0_sclk.spi0_sclk */
+        };
+    };
+    /* Fragment 1: configure the physical pin of SPI0 */
+    fragment@1 {
+        target = <&am33xx_pinmux>;
+        __overlay__ {
+            my_spi0_pins: pinmux_my_spi0_pins {
+                pinctrl-single,pins = <
+                    0x150 0x30 /* P9_22: SCLK | Mode 0 (Output) */
+                    0x154 0x30 /* P9_21: MISO | Mode 0 (Input)  */
+                    0x158 0x10 /* P9_18: MOSI | Mode 0 (Output) */
+                    0x15c 0x10 /* P9_17: CS0  | Mode 0 (Output) */
+                >;
+            };
+        };
+    };
+
+    /* Fragment 2: attach the display driver to the SPI hardware block */
+    fragment@2 {
+        target = <&spi0>;
+        __overlay__ {
+            status = "okay"; /* Turn the SPI0 controller ON */
+            pinctrl-names = "default";
+            pinctrl-0 = <&my_spi0_pins>; /* Link the pins we configured above */
+            /* FIXES THE WARNINGS: Tells the compiler how to read child addresses */
+            #address-cells = <1>;
+            #size-cells = <0>;
+            /* Describe the ST7789 display controller sitting on this bus */
+            my_lcd@0 {
+                compatible = "custom,st7789v";  /* Matches your kernel driver name */
+                reg = <0>;                      /* Chip Select 0 */
+                spi-max-frequency = <24000000>; /* Max SPI speed (24MHz) */
+                
+                /* Define custom GPIO hooks for the driver */
+                dc-gpios    = <&gpio3 21 0>;    /* Example Data/Command Pin */
+                reset-gpios = <&gpio3 22 0>;    /* Example Reset Pin */
+            };
+        };
+    };
+};

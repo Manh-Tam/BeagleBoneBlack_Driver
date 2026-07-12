@@ -34,3 +34,22 @@ Learned sysfs
 
 7/3/2026
 review my knowledge
+
+7/11/2026
+add driver for ST7789 and XPT2046 at application layer
+
+7/12/2026
+Start final project to create a simplified PvsZ game using the touch screen
+1. Create a device tree for the hardware
+2. Create a spi client driver to control the hardware at kernel space
+3. Write an application at user space
+-> handle graphics, create plants, create zombies, movements
+-> handle collisions
+-> handle the logic
+
+integrate spi into my custom device tree overlay.
+face serious issues related to device tree
+-> base device tree loaded first
+-> universal capre loaded next, occupy P9_22
+-> my dto loaded in the end => can't use P9_22
+-> do research on Google + AI -> find out a way to disable P9_22 under /ocp node

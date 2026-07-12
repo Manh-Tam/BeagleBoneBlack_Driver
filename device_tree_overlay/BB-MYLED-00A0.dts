@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "ti,am335x-bone-black";
+    fragment@0 {
+        target-path = "/";
+        __overlay__ {
+            yourled {
+                compatible = "your,led";
+            };
+        };
+    };
+};
