@@ -53,3 +53,11 @@ face serious issues related to device tree
 -> universal capre loaded next, occupy P9_22
 -> my dto loaded in the end => can't use P9_22
 -> do research on Google + AI -> find out a way to disable P9_22 under /ocp node
+
+7/13/2026
+try to use spi driver at kernel layer
+got a serious issue
+
+7/14/2026
+find out the issue due to incorrect pin connections
+
