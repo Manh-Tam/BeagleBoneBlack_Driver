@@ -110,7 +110,7 @@ uint16_t xpt2046_read_channel(uint8_t command_byte) {
         .tx_buf = (unsigned long)tx,
         .rx_buf = (unsigned long)rx,
         .len = 3,
-        .speed_hz = 2000000, // XPT2046 is slower than the LCD; keep it around 1-2 MHz
+        .speed_hz = 4000000, // XPT2046 is slower than the LCD; keep it around 1-2 MHz
         .bits_per_word = 8,
     };
 

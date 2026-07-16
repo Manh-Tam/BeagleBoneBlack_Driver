@@ -61,3 +61,5 @@ got a serious issue
 7/14/2026
 find out the issue due to incorrect pin connections
 
+7/16/2026
+drawed a chess board on the LCD.
