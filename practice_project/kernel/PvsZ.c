@@ -58,8 +58,16 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t
 static ssize_t my_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
     int i = 0;
+    int x = 0;
+    size_t cnt = count;
     u8 data[800];
     struct st7789_priv *p_st7789;
+    *ppos = 0;
+    // size_t num = (count + 799) / 800;
+
+    if (count <= 0)
+        return 0;
+
     p_st7789 = file->private_data;
 
     gpiod_set_value(p_st7789->dc_gpio, COMMAND);
@@ -67,8 +75,8 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t count,
     gpiod_set_value(p_st7789->dc_gpio, DATA);
     data[0] = 0;
     data[1] = 0;   /* X start */
-    data[2] = 0;
-    data[3] = 39; /* X end*/
+    data[2] = 0x01;
+    data[3] = 0x3F; /* X end*/
     spi_write(p_st7789->spi, &data, 4);
 
     gpiod_set_value(p_st7789->dc_gpio, COMMAND);
@@ -77,25 +85,77 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t count,
     data[0] = 0;
     data[1] = 0;     /* Y start */
     data[2] = 0;
-    data[3] = 39;     /* Y end */
+    data[3] = 0xEF;     /* Y end */
     spi_write(p_st7789->spi, &data, 4);
+
+    // gpiod_set_value(p_st7789->dc_gpio, COMMAND);
+    // lcd_command(p_st7789->spi, 0x2C);
+    // gpiod_set_value(p_st7789->dc_gpio, DATA);
+    // memset(data, 0x0E, 200);
+    // for (i = 0; i < 1536/2; i++)
+    // {
+    //     spi_write(p_st7789->spi, &data, 200);
+    // }
+
+    pr_info("the number of received bytes: %d\n", count);
+
+    // spi_write(p_st7789->spi, &buf, count);
+    // for (i = 0; i < count; i++)
+    // {
+    //     if (copy_from_user(data, (buf + i * 800), 800))
+    //         return -EFAULT;
+    //     // for (i = 0; i < 10; i++)
+    //     //     pr_info("%d ", data[i]);
+    //     // pr_info("\n");
+    //     spi_write(p_st7789->spi, &data, 800);
+    // }
+
+    // gpiod_set_value(p_st7789->dc_gpio, COMMAND);
+    // lcd_command(p_st7789->spi, 0x2A);
+    // gpiod_set_value(p_st7789->dc_gpio, DATA);
+    // data[0] = 0;
+    // data[1] = x;   /* X start */
+    // data[2] = 0;
+    // data[3] = x + 39; /* X end*/
+    // spi_write(p_st7789->spi, &data, 4);
+
+    // gpiod_set_value(p_st7789->dc_gpio, COMMAND);
+    // lcd_command(p_st7789->spi, 0x2B);
+    // gpiod_set_value(p_st7789->dc_gpio, DATA);
+    // data[0] = 0;
+    // data[1] = 0;     /* Y start */
+    // data[2] = 0;
+    // data[3] = 39;     /* Y end */
+    // spi_write(p_st7789->spi, &data, 4);
 
     gpiod_set_value(p_st7789->dc_gpio, COMMAND);
     lcd_command(p_st7789->spi, 0x2C);
-
     gpiod_set_value(p_st7789->dc_gpio, DATA);
-
-    memset(data, 0x3D, 800);
-
-    pr_info("the number of received bytes: %ld\n", count);
-
-    spi_write(p_st7789->spi, &buf, count);
-    // spi_write(p_st7789->spi, &data, 800);
-    // spi_write(p_st7789->spi, &data, 800);
+    i = 0;
+    cnt = count;
+    while (cnt > 0)
+    {
+        if (cnt > 800)
+        {
+            if (copy_from_user(data, (buf + i * 800), 800))
+                return -EFAULT;
+            *ppos += 800;
+        }
+        else
+        {
+            if (copy_from_user(data, (buf + i * 800), cnt))
+                return -EFAULT;
+            *ppos += cnt;
+        }
+        i++;
+        cnt -= 800;
+        spi_write(p_st7789->spi, &data, 800);
+    }
+    pr_info("\n");
     // spi_write(p_st7789->spi, &data, 800);
 
     pr_info("My spi write was called\n");
-    return count;
+    return *ppos;
 }
 
 struct file_operations fops = 
@@ -114,12 +174,12 @@ static int st7789_probe(struct spi_device *spi)
 {
     struct st7789_priv *priv;
     struct device *dev = &spi->dev;
-    int i = 0, j = 0;
+    // int i = 0, j = 0;
     int ret = 0;
-    u8 data[1000];
+    // u8 data[1000];
     spi->mode = SPI_MODE_0;             /* ST7789 operates nicely on Mode 0 */
     spi->bits_per_word = 8;
-    spi->max_speed_hz = 4000000;       /* 4 MHz */
+    spi->max_speed_hz = 24000000;       /* 4 MHz */
     if (spi_setup(spi) < 0) {
         dev_err(dev, "SPI setup failed\n");
         return -EINVAL;
@@ -180,7 +240,7 @@ static int st7789_probe(struct spi_device *spi)
     gpiod_set_value(priv->dc_gpio, COMMAND);
     lcd_command(priv->spi, 0x36);
     gpiod_set_value(priv->dc_gpio, DATA);
-    lcd_data(priv->spi, 0x00);
+    lcd_data(priv->spi, 0xa0);
 
     /*6. Turn display on*/
     gpiod_set_value(priv->dc_gpio, COMMAND);

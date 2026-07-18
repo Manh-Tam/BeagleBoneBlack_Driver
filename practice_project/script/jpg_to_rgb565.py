@@ -2,13 +2,14 @@ import os
 import sys
 from PIL import Image
 
-def convert_to_rgb565(image_path, output_c_path=None, resize_dims=None):
+def convert_to_rgb565_byte_pairs(image_path, output_c_path=None, resize_dims=None, big_endian=True):
     """
-    Converts a JPG image to an RGB565 C array.
+    Converts a JPG image to an RGB565 byte array format (0xXX, 0xXX for each pixel).
     
     :param image_path: Path to the input JPG image
     :param output_c_path: Path to write the .c file (defaults to image name + .c)
     :param resize_dims: Optional tuple (width, height) to resize the image
+    :param big_endian: If True, outputs MSB first (0xHH, 0xLL). If False, LSB first (0xLL, 0xHH).
     """
     if not os.path.exists(image_path):
         print(f"Error: Image '{image_path}' not found.")
@@ -29,7 +30,7 @@ def convert_to_rgb565(image_path, output_c_path=None, resize_dims=None):
     array_name = f"image_{base_name.replace('-', '_').replace(' ', '_')}"
     
     if not output_c_path:
-        output_c_path = f"{base_name}_rgb565.c"
+        output_c_path = f"{base_name}_rgb565_bytes.c"
         
     c_array_data = []
     
@@ -40,9 +41,6 @@ def convert_to_rgb565(image_path, output_c_path=None, resize_dims=None):
             r, g, b = pixels[x, y]
             
             # Scale 8-bit to 5-bit (Red), 6-bit (Green), and 5-bit (Blue)
-            # (r >> 3) yields a value 0-31
-            # (g >> 2) yields a value 0-63
-            # (b >> 3) yields a value 0-31
             r_5 = (r >> 3) & 0x1F
             g_6 = (g >> 2) & 0x3F
             b_5 = (b >> 3) & 0x1F
@@ -50,15 +48,12 @@ def convert_to_rgb565(image_path, output_c_path=None, resize_dims=None):
             # Pack into 16-bit value: rrrrrggggggbbbbb
             rgb565 = (r_5 << 11) | (g_6 << 5) | b_5
             
-            # # Format as 0xXXXX
-            # row_hex.append(f"0x{rgb565:04X}")
-
             # Split into High and Low bytes
             high_byte = (rgb565 >> 8) & 0xFF
             low_byte = rgb565 & 0xFF
             
             # Order bytes based on desired endianness (most TFT screens prefer Big Endian / MSB first)
-            if True:
+            if big_endian:
                 row_hex.append(f"0x{high_byte:02X}, 0x{low_byte:02X}")
             else:
                 row_hex.append(f"0x{low_byte:02X}, 0x{high_byte:02X}")
@@ -71,14 +66,14 @@ def convert_to_rgb565(image_path, output_c_path=None, resize_dims=None):
         f.write(f"// Image Dimensions: {width}x{height}\n")
         f.write(f"const uint16_t {array_name}_width = {width};\n")
         f.write(f"const uint16_t {array_name}_height = {height};\n\n")
-        f.write(f"const uint16_t {array_name}[{width * height}] = {{\n")
+        f.write(f"// RGB565 representation stored as individual bytes\n")
+        f.write(f"const uint8_t {array_name}[{width * height * 2}] = {{\n")
         f.write(",\n".join(c_array_data))
         f.write("\n};\n")
         
     print(f"Success! Saved {width}x{height} image to '{output_c_path}' as array '{array_name}'.")
 
 if __name__ == "__main__":
-    # Example Usage:
-    # Adjust "my_image.jpg" to your file. 
-    # Optional: Pass a target resolution like (240, 320) if flashing to a specific TFT screen.
-    convert_to_rgb565("zombie_head.jpg", "zombie_head.c",resize_dims=(40, 40))
+    # Example Usage: Replace with your actual image path and target dimension.
+    # big_endian=True writes High-Byte, Low-Byte (common for SPI displays)
+    convert_to_rgb565_byte_pairs("shot1.png",output_c_path="shot1.h", resize_dims=(40, 40), big_endian=True)
