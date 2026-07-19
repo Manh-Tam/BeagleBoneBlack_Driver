@@ -10,6 +10,11 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 
+#include <linux/of_device.h>       // of_match_device
+
+#include <linux/of_irq.h>
+#include <linux/interrupt.h>
+
 static dev_t dev_num;
 static struct class *class;
 
@@ -23,6 +28,18 @@ struct st7789_priv {
 
 #define COMMAND     0
 #define DATA        1
+
+static irqreturn_t touch_irq_thread(int irq, void *dev_id)
+{
+    pr_info("hel11rrewlo");
+    return IRQ_HANDLED;
+}
+
+static irqreturn_t touch_irq_handler(int irq, void *dev_id)
+{
+    // Schedule threaded handler
+    return IRQ_WAKE_THREAD; 
+}
 
 static void lcd_command(struct spi_device *spi, u8 command)
 {
@@ -49,16 +66,47 @@ static int my_release(struct inode *inode, struct file *file)
     return 0;
 }
 
+static int spi_read_bytes(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, size_t len)
+{
+    struct spi_transfer t = {
+        .tx_buf = tx_buf,     // No data to send
+        .rx_buf = rx_buf,   // Buffer to store received data
+        .len    = len,      // Number of bytes to read
+    };
+    struct spi_message m;
+
+    spi_message_init(&m);
+    spi_message_add_tail(&t, &m);
+
+    return spi_sync(spi, &m); // Blocking call
+}
+
 static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-    pr_info("My read was called\n");
+    // struct st7789_priv *p_st7789;
+    // u16 raw_adc;
+    // uint8_t tx[3] = { 0x00, 0x00, 0x00 };
+    // uint8_t rx[3] = { 0x00, 0x00, 0x00 };
+    
+    // p_st7789 = file->private_data;
+    // pr_info("My read was called\n");
+    // tx[0] = 0x90;
+    // devm_gpiod_set(p_st7789->cs1, 0);
+    // raw_adc = spi_read_bytes(p_st7789->spi, tx, rx, 3);
+    // devm_gpiod_set(p_st7789->cs1, 1);
+    // dev_info(&p_st7789->spi->dev, "Read bytes: %*ph\n", (int)sizeof(rx), rx);
+    // tx[0] = 0xD0;
+    // devm_gpiod_set(p_st7789->cs1, 0);
+    // raw_adc = spi_read_bytes(p_st7789->spi, tx, rx, 3);
+    // devm_gpiod_set(p_st7789->cs1, 1);
+    // dev_info(&p_st7789->spi->dev, "Read bytes: %*ph\n", (int)sizeof(rx), rx);
+
     return 0;
 }
 
 static ssize_t my_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
     int i = 0;
-    int x = 0;
     size_t cnt = count;
     u8 data[800];
     struct st7789_priv *p_st7789;
@@ -167,11 +215,12 @@ struct file_operations fops =
     .write = my_write,
 };
 
-
+static const struct of_device_id my_of_match[];
 
 /* 1. Changed parameter type from platform_device to spi_device */
 static int st7789_probe(struct spi_device *spi)
 {
+    #if 0
     struct st7789_priv *priv;
     struct device *dev = &spi->dev;
     // int i = 0, j = 0;
@@ -179,7 +228,7 @@ static int st7789_probe(struct spi_device *spi)
     // u8 data[1000];
     spi->mode = SPI_MODE_0;             /* ST7789 operates nicely on Mode 0 */
     spi->bits_per_word = 8;
-    spi->max_speed_hz = 24000000;       /* 4 MHz */
+    spi->max_speed_hz = 24000000;       /* 24 MHz */
     if (spi_setup(spi) < 0) {
         dev_err(dev, "SPI setup failed\n");
         return -EINVAL;
@@ -204,6 +253,7 @@ static int st7789_probe(struct spi_device *spi)
         dev_err(dev, "ST7789: Failed to acquire RST GPIO. Error: %ld\n", PTR_ERR(priv->rst_gpio));
         return PTR_ERR(priv->rst_gpio);
     }
+
     dev_info(dev, "ST7789: Hardware configuration successful!\n");
 
     /*1. Physical hardware Reset */
@@ -248,7 +298,7 @@ static int st7789_probe(struct spi_device *spi)
     gpiod_set_value(priv->dc_gpio, COMMAND);
     lcd_command(priv->spi, 0x29);  /*Main screen ON*/
     msleep(20);
-
+    #endif
 
     // gpiod_set_value(priv->dc_gpio, COMMAND);
     // lcd_command(spi, 0x2A);
@@ -331,7 +381,7 @@ static int st7789_probe(struct spi_device *spi)
     //     }
     // }
             
-    
+    #if 0
     ret = alloc_chrdev_region(&dev_num, 0, 1, "st7789");
     if (ret)
     {
@@ -351,6 +401,67 @@ static int st7789_probe(struct spi_device *spi)
     }
     device_create(class, NULL, dev_num, NULL, "st7789");
     spi_set_drvdata(spi, priv);
+    #endif
+    const struct of_device_id *match;
+    match = of_match_device(my_of_match, &spi->dev);
+    switch((uintptr_t)match->data)
+    {
+        case 0:
+        {
+            pr_info("display\n");
+            break;
+        }
+        case 1:
+        {
+            int ret = 0;
+            int i = 0;
+            u8 cmd = 0x90;
+            u8 rx[2];
+            struct gpio_desc *pendown;
+
+            pr_info("touch\n");
+            spi->mode = SPI_MODE_0;             /* xpt2046 operates nicely on Mode 0 */
+            spi->bits_per_word = 8;
+            spi->max_speed_hz = 4000000;       /* 4 MHz */
+            if (spi_setup(spi) < 0) {
+                dev_err(&spi->dev, "SPI setup failed\n");
+                return -EINVAL;
+            }
+            for (i = 0; i < 10; i++)
+            {
+                ret = spi_write_then_read(spi, &cmd, 1, rx, 2);
+                if (ret)
+                {
+                    return -EINVAL;
+                }
+                else
+                {
+                    pr_info("rx: 0x%x%x", rx[0], rx[1]);
+                }
+                msleep(10);
+            }
+            /*register interrupt*/
+            pendown = devm_gpiod_get(&spi->dev, "tirq", GPIOD_IN);
+            if (IS_ERR(pendown))
+            {
+                return PTR_ERR(pendown);
+            }
+            pr_info("get tirq\n");
+            ret = devm_request_threaded_irq(&spi->dev,
+                                            spi->irq,
+                                            touch_irq_handler,
+                                            touch_irq_thread,
+                                            IRQF_TRIGGER_FALLING,
+                                            dev_name(&spi->dev),
+                                            NULL);
+            if (ret)
+            {
+                pr_err("irq failed\n");
+                return ret;
+            }
+            break;
+        }
+    }
     pr_info("Initialization completed\n");
     return 0;
 }
@@ -358,13 +469,13 @@ static int st7789_probe(struct spi_device *spi)
 /* 2. Changed parameter type from platform_device to spi_device */
 static int st7789_remove(struct spi_device *spi)
 {
-    struct st7789_priv *p_dev;
-    p_dev = spi_get_drvdata(spi);
-    device_destroy(class, dev_num);
-    cdev_del(&p_dev->cdev);
-    class_destroy(class);
-    unregister_chrdev_region(dev_num, 1);
-    pr_info("st7789 removed\n");
+    // struct st7789_priv *p_dev;
+    // p_dev = spi_get_drvdata(spi);
+    // device_destroy(class, dev_num);
+    // cdev_del(&p_dev->cdev);
+    // class_destroy(class);
+    // unregister_chrdev_region(dev_num, 1);
+    // pr_info("st7789 removed\n");
     return 0;
 }
 
@@ -372,6 +483,11 @@ static const struct of_device_id my_of_match[] =
 {
     {
         .compatible = "custom,st7789v",
+        .data = (void*)0,
+    },
+    {
+        .compatible = "custom,xpt2046",
+        .data = (void*)1,
     },
     {}
 };
