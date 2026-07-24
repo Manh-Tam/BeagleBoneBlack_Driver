@@ -110,7 +110,8 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t
     struct lcd_priv *p_lcd;
     // u16 raw_adc;
     // uint8_t tx[3] = { 0x00, 0x00, 0x00 };
-    u8 rx[2] = { 0x00, 0x00};
+    u8 rx[4] = { 0x00, 0x00};
+    u8 cmd = 0x00;
     
     p_lcd = file->private_data;
     pr_info("My read was called\n");
@@ -124,10 +125,12 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t
     // raw_adc = spi_read_bytes(p_lcd->spi, tx, rx, 3);
     // devm_gpiod_set(p_lcd->cs1, 1);
     // dev_info(&p_lcd->spi->dev, "Read bytes: %*ph\n", (int)sizeof(rx), rx);
-    char value = 'a';
-    u8 cmd = 0xD0;
-    pr_info("my_read called from poll()\n");
+    cmd = 0xD0;
+    pr_info("get x coordinate\n");
     spi_write_then_read(p_lcd->spi, &cmd, 1, rx, 2);
+    cmd = 0x90;
+    pr_info("get y coordinate\n");
+    spi_write_then_read(p_lcd->spi, &cmd, 1, &rx[2], 2);
     lcd_touched = false;
     if (copy_to_user(buf, rx, sizeof(rx)))
     {
@@ -362,54 +365,61 @@ static int lcd_init(struct spi_device *spi)
 static int touch_init(struct spi_device *spi)
 {
     int ret = 0;
-    // struct touch_priv *p_touch;
-    // struct device *p_dev;
-    // p_touch = devm_kzalloc(sizeof(*p_touch));
-    // p_touch->spi = spi;
-    // p_dev = &spi->dev;
+    struct touch_priv *p_touch;
+    struct device *my_device = NULL;
+    struct device *p_dev;
 
-    // /*1. init character driver for touch*/
-    // cdev_init(&p_touch->cdev, &fops);
-    // p_touch->dev_num = MKDEV(MAJOR(first_dev_num), 1);
-    // ret = cdev_add(&p_touch->cdev, p_touch->dev_num, 1);
-    // if (ret)
-    // {
-    //     return ret;
-    // }
-    // device_create(class, NULL, p_touch->dev_num, NULL, "touch");
-
-    // /*2. init xpt2046 */
-    // spi->mode = SPI_MODE_0;             /* xpt2046 operates nicely on Mode 0 */
-    // spi->bits_per_word = 8;
-    // spi->max_speed_hz = 2000000;       /* 2 MHz */
+    p_dev = &spi->dev;
+    p_touch = devm_kzalloc(p_dev, sizeof(*p_touch), GFP_KERNEL);
     
-    // if (spi_setup(spi) < 0) {
-    //     dev_err(&spi->dev, "SPI setup failed\n");
-    //     return -EINVAL;
-    // }
-    // /*3. register interrupt*/
-    // p_touch->irq_gpio = devm_gpiod_get(p_dev, "tirq", GPIOD_IN);
-    // if (IS_ERR(p_touch->irq_gpio))
-    // {
-    //     return PTR_ERR(p_touch->irq_gpio);
-    // }
-    // pr_info("get tirq\n");
-    // ret = devm_request_threaded_irq(p_dev,
-    //                                 spi->irq,
-    //                                 touch_irq_handler,
-    //                                 touch_irq_thread,
-    //                                 IRQF_TRIGGER_FALLING,
-    //                                 dev_name(p_dev),
-    //                                 NULL);
-    // if (ret)
-    // {
-    //     pr_err("irq failed\n");
-    //     return ret;
-    // }
-    // init_waitqueue_head(&button_wait);
-    // lcd_touched = false;
+    /*1. init character driver for touch*/
+    cdev_init(&p_touch->cdev, &fops);
+    p_touch->dev_num = MKDEV(MAJOR(first_dev_num), 1);
+    ret = cdev_add(&p_touch->cdev, p_touch->dev_num, 1);
+    if (ret)
+    {
+        return ret;
+    }
+    my_device = device_create(class, NULL, p_touch->dev_num, NULL, "touch");
+    if (IS_ERR(my_device))
+    {
+        pr_err("failed to create my device\n");
+        ret = PTR_ERR(my_device);
+    }
+    
+    /*2. init xpt2046 */
+    p_touch->spi = spi;
+    spi->mode = SPI_MODE_0;             /* xpt2046 operates nicely on Mode 0 */
+    spi->bits_per_word = 8;
+    spi->max_speed_hz = 2000000;       /* 2 MHz */
+    
+    if (spi_setup(spi) < 0) {
+        dev_err(&spi->dev, "SPI setup failed\n");
+        return -EINVAL;
+    }
+    /*3. register interrupt*/
+    p_touch->irq_gpio = devm_gpiod_get(p_dev, "tirq", GPIOD_IN);
+    if (IS_ERR(p_touch->irq_gpio))
+    {
+        return PTR_ERR(p_touch->irq_gpio);
+    }
+    pr_info("get tirq\n");
+    ret = devm_request_threaded_irq(p_dev,
+                                    spi->irq,
+                                    touch_irq_handler,
+                                    touch_irq_thread,
+                                    IRQF_TRIGGER_FALLING,
+                                    dev_name(p_dev),
+                                    NULL);
+    if (ret)
+    {
+        pr_err("irq failed\n");
+        return ret;
+    }
+    init_waitqueue_head(&button_wait);
+    lcd_touched = false;
 
-    // spi_set_drvdata(spi, p_touch);
+    spi_set_drvdata(spi, p_touch);
 
     return ret;
 }
@@ -665,10 +675,11 @@ static int st7789_probe(struct spi_device *spi)
     #endif
 
     int ret = 0;
+    const struct of_device_id *match;
     if (false == class_created)
     {
         class_created = true;
-        ret = alloc_chrdev_region(&first_dev_num, 0, 2, "touch_lcd");
+        ret = alloc_chrdev_region(&first_dev_num, 0, 32, "touch_lcd");
         if (ret)
         {
             return ret;
@@ -681,7 +692,6 @@ static int st7789_probe(struct spi_device *spi)
         }
     }
 
-    const struct of_device_id *match;
     match = of_match_device(my_of_match, &spi->dev);
     switch((uintptr_t)match->data)
     {
@@ -706,22 +716,47 @@ static int st7789_probe(struct spi_device *spi)
 /* 2. Changed parameter type from platform_device to spi_device */
 static int st7789_remove(struct spi_device *spi)
 {
-    // struct lcd_priv *p_dev;
+    struct lcd_priv *p_dev;
     // p_dev = spi_get_drvdata(spi);
     // device_destroy(class, p_dev->dev_num);
     // cdev_del(&p_dev->cdev);
-    class_destroy(class);
-    unregister_chrdev_region(first_dev_num, 2);
-    pr_info("st7789 removed\n");
+    // class_destroy(class);
+    // unregister_chrdev_region(first_dev_num, 32);
+
+    const struct of_device_id *match;
+    match = of_match_device(my_of_match, &spi->dev);
+    switch((uintptr_t)match->data)
+    {
+        case 0:
+        {
+            p_dev = spi_get_drvdata(spi);
+            device_destroy(class, p_dev->dev_num);
+            cdev_del(&p_dev->cdev);
+            pr_info("lcd device removed\n");
+            break;
+        }
+        case 1:
+        {
+            p_dev = spi_get_drvdata(spi);
+            device_destroy(class, p_dev->dev_num);
+            cdev_del(&p_dev->cdev);
+            pr_info("touch device removed\n");
+            class_destroy(class);
+            unregister_chrdev_region(first_dev_num, 32);
+            pr_info("touch_lcd class removed\n");
+            break;
+        }
+    }
+
     return 0;
 }
 
 static const struct of_device_id my_of_match[] = 
 {
-    // {
-    //     .compatible = "custom,st7789v",
-    //     .data = (void*)0,
-    // },
+    {
+        .compatible = "custom,st7789v",
+        .data = (void*)0,
+    },
     {
         .compatible = "custom,xpt2046",
         .data = (void*)1,
