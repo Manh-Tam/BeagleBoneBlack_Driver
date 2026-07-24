@@ -14,9 +14,14 @@
 
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
+#include <linux/poll.h>           // poll()
+#include <linux/wait.h>           // wake_up() and wait()
 
 static dev_t dev_num;
 static struct class *class;
+
+static wait_queue_head_t button_wait;
+static bool lcd_touched = false;
 
 /* private device structure */
 struct st7789_priv {
@@ -31,13 +36,23 @@ struct st7789_priv {
 
 static irqreturn_t touch_irq_thread(int irq, void *dev_id)
 {
-    pr_info("hel11rrewlo");
+    pr_info("touch_irq_thread\n");
     return IRQ_HANDLED;
 }
 
 static irqreturn_t touch_irq_handler(int irq, void *dev_id)
 {
     // Schedule threaded handler
+
+    unsigned long current_time = jiffies_to_msecs(jiffies);
+    static unsigned long last_time = 0;
+    unsigned long elapsed_time = 20;
+    if (current_time - last_time >= 100)
+    {
+        last_time = current_time;
+        lcd_touched = true;
+        wake_up_interruptible(&button_wait);
+    }
     return IRQ_WAKE_THREAD; 
 }
 
@@ -83,13 +98,13 @@ static int spi_read_bytes(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, size_t
 
 static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-    // struct st7789_priv *p_st7789;
+    struct st7789_priv *p_st7789;
     // u16 raw_adc;
     // uint8_t tx[3] = { 0x00, 0x00, 0x00 };
-    // uint8_t rx[3] = { 0x00, 0x00, 0x00 };
+    u8 rx[2] = { 0x00, 0x00};
     
-    // p_st7789 = file->private_data;
-    // pr_info("My read was called\n");
+    p_st7789 = file->private_data;
+    pr_info("My read was called\n");
     // tx[0] = 0x90;
     // devm_gpiod_set(p_st7789->cs1, 0);
     // raw_adc = spi_read_bytes(p_st7789->spi, tx, rx, 3);
@@ -100,7 +115,16 @@ static ssize_t my_read(struct file *file, char __user *buf, size_t count, loff_t
     // raw_adc = spi_read_bytes(p_st7789->spi, tx, rx, 3);
     // devm_gpiod_set(p_st7789->cs1, 1);
     // dev_info(&p_st7789->spi->dev, "Read bytes: %*ph\n", (int)sizeof(rx), rx);
-
+    char value = 'a';
+    u8 cmd = 0xD0;
+    pr_info("my_read called from poll()\n");
+    spi_write_then_read(p_st7789->spi, &cmd, 1, rx, 2);
+    lcd_touched = false;
+    if (copy_to_user(buf, rx, sizeof(rx)))
+    {
+        pr_err("copy to user\n");
+        return -EINVAL;
+    }
     return 0;
 }
 
@@ -206,6 +230,17 @@ static ssize_t my_write(struct file *file, const char __user *buf, size_t count,
     return *ppos;
 }
 
+static __poll_t my_poll(struct file* file, poll_table *wait)
+{
+    pr_info("my poll called\n");
+    poll_wait(file, &button_wait, wait);
+    if (lcd_touched)
+    {
+        return POLLIN;
+    }
+    return 0;
+}
+
 struct file_operations fops = 
 {
     .owner = THIS_MODULE,
@@ -213,6 +248,7 @@ struct file_operations fops =
     .release = my_release,
     .read = my_read,
     .write = my_write,
+    .poll = my_poll,
 };
 
 static const struct of_device_id my_of_match[];
@@ -220,11 +256,13 @@ static const struct of_device_id my_of_match[];
 /* 1. Changed parameter type from platform_device to spi_device */
 static int st7789_probe(struct spi_device *spi)
 {
-    #if 0
+    int ret = 0;
     struct st7789_priv *priv;
     struct device *dev = &spi->dev;
+    priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+    priv->spi = spi;
+    #if 0
     // int i = 0, j = 0;
-    int ret = 0;
     // u8 data[1000];
     spi->mode = SPI_MODE_0;             /* ST7789 operates nicely on Mode 0 */
     spi->bits_per_word = 8;
@@ -235,7 +273,6 @@ static int st7789_probe(struct spi_device *spi)
     }
     dev_info(dev, "ST7789: Matching hardware node found!");
     /*allocate memory for driver's private data*/
-    priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
     if (!priv)
     {
         return -ENOMEM;
@@ -381,7 +418,7 @@ static int st7789_probe(struct spi_device *spi)
     //     }
     // }
             
-    #if 0
+    #if 1
     ret = alloc_chrdev_region(&dev_num, 0, 1, "st7789");
     if (ret)
     {
@@ -459,6 +496,8 @@ static int st7789_probe(struct spi_device *spi)
                 pr_err("irq failed\n");
                 return ret;
             }
+            init_waitqueue_head(&button_wait);
+            lcd_touched = false;
             break;
         }
     }
@@ -469,22 +508,22 @@ static int st7789_probe(struct spi_device *spi)
 /* 2. Changed parameter type from platform_device to spi_device */
 static int st7789_remove(struct spi_device *spi)
 {
-    // struct st7789_priv *p_dev;
-    // p_dev = spi_get_drvdata(spi);
-    // device_destroy(class, dev_num);
-    // cdev_del(&p_dev->cdev);
-    // class_destroy(class);
-    // unregister_chrdev_region(dev_num, 1);
-    // pr_info("st7789 removed\n");
+    struct st7789_priv *p_dev;
+    p_dev = spi_get_drvdata(spi);
+    device_destroy(class, dev_num);
+    cdev_del(&p_dev->cdev);
+    class_destroy(class);
+    unregister_chrdev_region(dev_num, 1);
+    pr_info("st7789 removed\n");
     return 0;
 }
 
 static const struct of_device_id my_of_match[] = 
 {
-    {
-        .compatible = "custom,st7789v",
-        .data = (void*)0,
-    },
+    // {
+    //     .compatible = "custom,st7789v",
+    //     .data = (void*)0,
+    // },
     {
         .compatible = "custom,xpt2046",
         .data = (void*)1,
