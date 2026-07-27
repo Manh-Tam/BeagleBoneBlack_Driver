@@ -348,7 +348,7 @@ static int lcd_init(struct spi_device *spi)
     gpiod_set_value(p_lcd->dc_gpio, COMMAND);
     lcd_command(p_lcd->spi, 0x36);
     gpiod_set_value(p_lcd->dc_gpio, DATA);
-    lcd_data(p_lcd->spi, 0xa0);
+    lcd_data(p_lcd->spi, 0x60);
 
     /*3.6. Turn display on*/
     gpiod_set_value(p_lcd->dc_gpio, COMMAND);

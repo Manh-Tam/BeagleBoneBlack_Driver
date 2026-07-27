@@ -21,7 +21,7 @@ def convert_to_rgb565_byte_pairs(image_path, output_c_path=None, resize_dims=Non
     # Optional resize (useful for small TFT screens)
     if resize_dims:
         img = img.resize(resize_dims)
-        
+    img.show()
     width, height = img.size
     pixels = img.load()
     
@@ -76,4 +76,4 @@ def convert_to_rgb565_byte_pairs(image_path, output_c_path=None, resize_dims=Non
 if __name__ == "__main__":
     # Example Usage: Replace with your actual image path and target dimension.
     # big_endian=True writes High-Byte, Low-Byte (common for SPI displays)
-    convert_to_rgb565_byte_pairs("shot1.png",output_c_path="shot1.h", resize_dims=(40, 40), big_endian=True)
+    convert_to_rgb565_byte_pairs("sunflower_bloom.png",output_c_path="sunflower_bloom.h", resize_dims=(40, 40), big_endian=True)
