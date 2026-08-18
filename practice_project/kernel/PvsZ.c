@@ -424,258 +424,11 @@ static int touch_init(struct spi_device *spi)
     return ret;
 }
 
-/* 1. Changed parameter type from platform_device to spi_device */
 static int st7789_probe(struct spi_device *spi)
 {
-    // int ret = 0;
-    // struct device *dev = &spi->dev;
-    // p_lcd = devm_kzalloc(dev, sizeof(*p_lcd), GFP_KERNEL);
-    // p_lcd->spi = spi;
-    #if 0
-    // int i = 0, j = 0;
-    // u8 data[1000];
-    spi->mode = SPI_MODE_0;             /* ST7789 operates nicely on Mode 0 */
-    spi->bits_per_word = 8;
-    spi->max_speed_hz = 24000000;       /* 24 MHz */
-    if (spi_setup(spi) < 0) {
-        dev_err(dev, "SPI setup failed\n");
-        return -EINVAL;
-    }
-    dev_info(dev, "ST7789: Matching hardware node found!");
-    /*allocate memory for driver's private data*/
-    if (!priv)
-    {
-        return -ENOMEM;
-    }
-    priv->spi = spi;
-    
-    priv->dc_gpio = devm_gpiod_get(dev, "dc", GPIOD_OUT_LOW);
-    if (IS_ERR(priv->dc_gpio)) {
-        dev_err(dev, "ST7789: Failed to acquire DC GPIO. Error: %ld\n", PTR_ERR(priv->dc_gpio));
-        return PTR_ERR(priv->dc_gpio);
-    }
-
-    priv->rst_gpio = devm_gpiod_get(dev, "rst", GPIOD_OUT_LOW);
-    if (IS_ERR(priv->rst_gpio)) {
-        dev_err(dev, "ST7789: Failed to acquire RST GPIO. Error: %ld\n", PTR_ERR(priv->rst_gpio));
-        return PTR_ERR(priv->rst_gpio);
-    }
-
-    dev_info(dev, "ST7789: Hardware configuration successful!\n");
-
-    /*1. Physical hardware Reset */
-    gpiod_set_value(priv->rst_gpio, 1);
-    msleep(10);      /*sleep for 10 ms*/
-    gpiod_set_value(priv->rst_gpio, 0);
-    msleep(20);     /*pull down 20 ms*/
-    gpiod_set_value(priv->rst_gpio, 1);
-    msleep(120);     /*stable delay */
-
-    /*2. Software Reset */
-    /*set internal registers to their default state*/
-    gpiod_set_value(priv->dc_gpio, COMMAND);
-    lcd_command(priv->spi, 0x01);
-    msleep(150);
-
-    /*3. Wake up*/
-    /*Wake up charge pumps and oscillators*/
-    gpiod_set_value(priv->dc_gpio, COMMAND);
-    lcd_command(priv->spi, 0x11);
-    msleep(120);
-
-    /*4. Interface Pixel Format*/
-    /*0x3A COLMOD*/
-    /*0x55 use RGB565*/
-    gpiod_set_value(priv->dc_gpio, COMMAND);
-    lcd_command(priv->spi, 0x3A);
-    gpiod_set_value(priv->dc_gpio, DATA);
-    lcd_data(priv->spi, 0x55);
-
-    /*5. Memory Access Control*/
-    /*MADCTL*/
-    /*Top to bottom, Left to right layout*/
-    gpiod_set_value(priv->dc_gpio, COMMAND);
-    lcd_command(priv->spi, 0x36);
-    gpiod_set_value(priv->dc_gpio, DATA);
-    lcd_data(priv->spi, 0xa0);
-
-    /*6. Turn display on*/
-    gpiod_set_value(priv->dc_gpio, COMMAND);
-    lcd_command(priv->spi, 0x20);  /*Normal display mode*/
-    gpiod_set_value(priv->dc_gpio, COMMAND);
-    lcd_command(priv->spi, 0x29);  /*Main screen ON*/
-    msleep(20);
-    #endif
-
-    // gpiod_set_value(priv->dc_gpio, COMMAND);
-    // lcd_command(spi, 0x2A);
-    // gpiod_set_value(priv->dc_gpio, DATA);
-    // data[0] = 0;
-    // data[1] = 160;
-    // data[2] = 0;
-    // data[3] = 200;
-    // spi_write(spi, &data, 4);
-
-    // gpiod_set_value(priv->dc_gpio, COMMAND);
-    // lcd_command(spi, 0x2B);
-    // gpiod_set_value(priv->dc_gpio, DATA);
-    // data[0] = 0;
-    // data[1] = 200;
-    // data[2] = 0;
-    // data[3] = 240;
-    // spi_write(spi, &data, 4);
-
-    /*7. set data to display RAM*/
-    // RAMWR
-    // gpiod_set_value(priv->dc_gpio, COMMAND);
-    // lcd_command(spi, 0x2C);
-
-    // gpiod_set_value(priv->dc_gpio, DATA);
-    // data[0] = 0xF8;
-    // // data[0] = 0x12;
-    // data[1] = 0x1F;
-    // // for (i = 0; i < 76800; i++)
-    // for (i = 0; i < 6; i++)
-    // {
-    //     gpiod_set_value(priv->dc_gpio, COMMAND);
-    //     lcd_command(spi, 0x2A);
-    //     gpiod_set_value(priv->dc_gpio, DATA);
-    //     data[0] = 0;
-    //     data[1] = i * 40;   /* X start */
-    //     data[2] = 0;
-    //     data[3] = ((i + 1) * 40) - 1; /* X end*/
-    //     spi_write(spi, &data, 4);
-    //     for (j = 0; j < 8; j++)
-    //     {
-    //         gpiod_set_value(priv->dc_gpio, COMMAND);
-    //         lcd_command(spi, 0x2B);
-    //         gpiod_set_value(priv->dc_gpio, DATA);
-    //         u16 y_s = (j * 40);
-    //         u16 y_e = ((j + 1) * 40) - 1;
-    //         data[0] = y_s >> 8;
-    //         data[1] = y_s & 0xff;     /* Y start */
-    //         data[2] = y_e >> 8;
-    //         data[3] = y_e & 0xff;     /* Y end */
-    //         spi_write(spi, &data, 4);
-
-    //         gpiod_set_value(priv->dc_gpio, COMMAND);
-    //         lcd_command(spi, 0x2C);
-
-    //         gpiod_set_value(priv->dc_gpio, DATA);
-    //         if (j % 2 == 0)
-    //         {
-    //             if (i % 2 == 0)
-    //                 memset(data, 0x00, 800);
-    //             else
-    //                 memset(data, 0x77, 800);
-
-    //             spi_write(spi, &data, 800);
-    //             spi_write(spi, &data, 800);
-    //             spi_write(spi, &data, 800);
-    //             spi_write(spi, &data, 800);
-    //         }
-    //         else
-    //         {
-    //             if (i % 2 == 0)
-    //                 memset(data, 0x77, 800);
-    //             else
-    //                 memset(data, 0x00, 800);
-    //             spi_write(spi, &data, 800);
-    //             spi_write(spi, &data, 800);
-    //             spi_write(spi, &data, 800);
-    //             spi_write(spi, &data, 800);
-    //         }
-    //     }
-    // }
-            
-    #if 0
-    ret = alloc_chrdev_region(&dev_num, 0, 1, "st7789");
-    if (ret)
-    {
-        return ret;
-    }
-    class = class_create(THIS_MODULE, "st7789");
-    if (IS_ERR(class))
-    {
-        ret = PTR_ERR(class);
-        return ret;
-    }
-    cdev_init(&priv->cdev, &fops);
-    ret = cdev_add(&priv->cdev, dev_num, 1);
-    if (ret)
-    {
-        return ret;
-    }
-    device_create(class, NULL, dev_num, NULL, "st7789");
-    spi_set_drvdata(spi, priv);
-    
-
-    const struct of_device_id *match;
-    match = of_match_device(my_of_match, &spi->dev);
-    switch((uintptr_t)match->data)
-    {
-        case 0:
-        {
-            pr_info("display\n");
-            break;
-        }
-        case 1:
-        {
-            int ret = 0;
-            int i = 0;
-            u8 cmd = 0x90;
-            u8 rx[2];
-            struct gpio_desc *pendown;
-
-            pr_info("touch\n");
-            spi->mode = SPI_MODE_0;             /* xpt2046 operates nicely on Mode 0 */
-            spi->bits_per_word = 8;
-            spi->max_speed_hz = 2000000;       /* 4 MHz */
-            if (spi_setup(spi) < 0) {
-                dev_err(&spi->dev, "SPI setup failed\n");
-                return -EINVAL;
-            }
-            for (i = 0; i < 10; i++)
-            {
-                ret = spi_write_then_read(spi, &cmd, 1, rx, 2);
-                if (ret)
-                {
-                    return -EINVAL;
-                }
-                else
-                {
-                    pr_info("rx: 0x%x%x", rx[0], rx[1]);
-                }
-                msleep(10);
-            }
-            /*register interrupt*/
-            pendown = devm_gpiod_get(&spi->dev, "tirq", GPIOD_IN);
-            if (IS_ERR(pendown))
-            {
-                return PTR_ERR(pendown);
-            }
-            pr_info("get tirq\n");
-            ret = devm_request_threaded_irq(&spi->dev,
-                                            spi->irq,
-                                            touch_irq_handler,
-                                            touch_irq_thread,
-                                            IRQF_TRIGGER_FALLING,
-                                            dev_name(&spi->dev),
-                                            NULL);
-            if (ret)
-            {
-                pr_err("irq failed\n");
-                return ret;
-            }
-            init_waitqueue_head(&button_wait);
-            lcd_touched = false;
-            break;
-        }
-    }
-    #endif
-
     int ret = 0;
     const struct of_device_id *match;
+    /*1. Create class for display and touch*/
     if (false == class_created)
     {
         class_created = true;
@@ -692,39 +445,36 @@ static int st7789_probe(struct spi_device *spi)
         }
     }
 
+    /*2. Create character driver for each device */
     match = of_match_device(my_of_match, &spi->dev);
     switch((uintptr_t)match->data)
     {
         case 0:
         {
-            pr_info("display\n");
+            pr_info("[INFO] Initializing display\n");
             lcd_init(spi);
+            pr_info("[INFO] Display initialized\n");
             break;
         }
         case 1:
         {
-            pr_info("touch\n");
+            pr_info("[INFO] Initializing touch\n");
             touch_init(spi);
+            pr_info("[INFO] Touch initialized\n");
             break;
         }
     }
     
-    pr_info("Initialization completed\n");
+    pr_info("[INFO] Initialization completed\n");
     return 0;
 }
 
-/* 2. Changed parameter type from platform_device to spi_device */
 static int st7789_remove(struct spi_device *spi)
 {
     struct lcd_priv *p_dev;
-    // p_dev = spi_get_drvdata(spi);
-    // device_destroy(class, p_dev->dev_num);
-    // cdev_del(&p_dev->cdev);
-    // class_destroy(class);
-    // unregister_chrdev_region(first_dev_num, 32);
-
     const struct of_device_id *match;
     match = of_match_device(my_of_match, &spi->dev);
+    /*1. Remove each device and remove their class in the end*/
     switch((uintptr_t)match->data)
     {
         case 0:
@@ -732,7 +482,7 @@ static int st7789_remove(struct spi_device *spi)
             p_dev = spi_get_drvdata(spi);
             device_destroy(class, p_dev->dev_num);
             cdev_del(&p_dev->cdev);
-            pr_info("lcd device removed\n");
+            pr_info("[INFO] Device display removed\n");
             break;
         }
         case 1:
@@ -740,10 +490,10 @@ static int st7789_remove(struct spi_device *spi)
             p_dev = spi_get_drvdata(spi);
             device_destroy(class, p_dev->dev_num);
             cdev_del(&p_dev->cdev);
-            pr_info("touch device removed\n");
+            pr_info("[INFO] Device touch removed\n");
             class_destroy(class);
             unregister_chrdev_region(first_dev_num, 32);
-            pr_info("touch_lcd class removed\n");
+            pr_info("[INFO] Class touch_lcd removed\n");
             break;
         }
     }
