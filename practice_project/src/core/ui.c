@@ -2,12 +2,39 @@
 
 #include "../config.h"
 
-bool ui_command_from_touch(touch_event_t event, game_command_t *command)
+static bool point_in_rectangle(touch_event_t event, int x, int y,
+                               int width, int height)
+{
+    return event.x >= x && event.x < x + width &&
+           event.y >= y && event.y < y + height;
+}
+
+bool ui_command_from_touch(touch_event_t event, game_status_t status,
+                           game_command_t *command)
 {
     uint16_t column;
 
     if (command == NULL || event.x >= PVZ_SCREEN_WIDTH ||
         event.y >= PVZ_SCREEN_HEIGHT) {
+        return false;
+    }
+
+    if (status == GAME_LOST) {
+        if (point_in_rectangle(event, PVZ_REPLAY_YES_X, PVZ_REPLAY_YES_Y,
+                               PVZ_REPLAY_BUTTON_WIDTH,
+                               PVZ_REPLAY_BUTTON_HEIGHT)) {
+            command->type = GAME_COMMAND_RESTART;
+            return true;
+        }
+        if (point_in_rectangle(event, PVZ_REPLAY_NO_X, PVZ_REPLAY_NO_Y,
+                               PVZ_REPLAY_BUTTON_WIDTH,
+                               PVZ_REPLAY_BUTTON_HEIGHT)) {
+            command->type = GAME_COMMAND_STOP;
+            return true;
+        }
+        return false;
+    }
+    if (status != GAME_RUNNING) {
         return false;
     }
 

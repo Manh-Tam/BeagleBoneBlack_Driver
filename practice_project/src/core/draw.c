@@ -153,3 +153,57 @@ void draw_digit(framebuffer_t *framebuffer, int x, int y, int digit,
         }
     }
 }
+
+static const uint8_t *glyph_for_character(char character)
+{
+    static const uint8_t a[7] = {0x0e, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11};
+    static const uint8_t e[7] = {0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x1f};
+    static const uint8_t g[7] = {0x0e, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0f};
+    static const uint8_t i[7] = {0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1f};
+    static const uint8_t l[7] = {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1f};
+    static const uint8_t n[7] = {0x11, 0x19, 0x19, 0x15, 0x13, 0x13, 0x11};
+    static const uint8_t o[7] = {0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e};
+    static const uint8_t p[7] = {0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10};
+    static const uint8_t s[7] = {0x0f, 0x10, 0x10, 0x0e, 0x01, 0x01, 0x1e};
+    static const uint8_t y[7] = {0x11, 0x11, 0x0a, 0x04, 0x04, 0x04, 0x04};
+    static const uint8_t question[7] = {0x0e, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04};
+    static const uint8_t blank[7] = {0U, 0U, 0U, 0U, 0U, 0U, 0U};
+
+    switch (character) {
+    case 'A': return a;
+    case 'E': return e;
+    case 'G': return g;
+    case 'I': return i;
+    case 'L': return l;
+    case 'N': return n;
+    case 'O': return o;
+    case 'P': return p;
+    case 'S': return s;
+    case 'Y': return y;
+    case '?': return question;
+    default: return blank;
+    }
+}
+
+void draw_text(framebuffer_t *framebuffer, int x, int y, const char *text,
+               uint16_t color, unsigned int scale)
+{
+    if (framebuffer == NULL || text == NULL || scale == 0U) {
+        return;
+    }
+
+    for (size_t index = 0U; text[index] != '\0'; ++index) {
+        const uint8_t *glyph = glyph_for_character(text[index]);
+        for (int row = 0; row < 7; ++row) {
+            for (int column = 0; column < 5; ++column) {
+                if ((glyph[row] & (uint8_t)(UINT8_C(0x10) >> column)) != 0U) {
+                    draw_fill_rectangle(framebuffer,
+                                        x + column * (int)scale,
+                                        y + row * (int)scale,
+                                        (int)scale, (int)scale, color);
+                }
+            }
+        }
+        x += 6 * (int)scale;
+    }
+}

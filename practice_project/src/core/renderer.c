@@ -2,10 +2,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "../config.h"
 #include "assets.h"
 #include "digit_bitmaps.h"
+#include "ui.h"
 
 struct renderer {
     framebuffer_t framebuffer;
@@ -46,23 +48,49 @@ static void draw_border(framebuffer_t *framebuffer, int x, int y,
     draw_fill_rectangle(framebuffer, x + width - 2, y, 2, height, color);
 }
 
-static void draw_background(framebuffer_t *framebuffer)
+static void copy_background(framebuffer_t *framebuffer)
 {
-    uint16_t menu = draw_rgb555(110U, 175U, 40U);
-    uint16_t light_grass = draw_rgb555(115U, 205U, 65U);
-    uint16_t dark_grass = draw_rgb555(75U, 170U, 45U);
+    const asset_image_t *background = assets_background();
+    size_t background_size = (size_t)background->width * background->height *
+                             PVZ_BYTES_PER_PIXEL;
 
-    draw_fill_rectangle(framebuffer, 0, 0, PVZ_SCREEN_WIDTH,
-                        PVZ_TILE_HEIGHT, menu);
-    for (int row = 0; row < PVZ_GAME_ROWS; ++row) {
-        for (int column = 0; column < PVZ_GAME_COLUMNS; ++column) {
-            uint16_t color = ((row + column) % 2) == 0
-                                 ? light_grass : dark_grass;
-            draw_fill_rectangle(framebuffer, column * PVZ_TILE_WIDTH,
-                                (row + 1) * PVZ_TILE_HEIGHT,
-                                PVZ_TILE_WIDTH, PVZ_TILE_HEIGHT, color);
-        }
+    if (background->width == framebuffer->width &&
+        background->height == framebuffer->height &&
+        background_size == framebuffer->size) {
+        memcpy(framebuffer->pixels, background->pixels, background_size);
+    } else {
+        draw_fill_rectangle(framebuffer, 0, 0, framebuffer->width,
+                            framebuffer->height, draw_rgb555(0U, 0U, 0U));
     }
+}
+
+static void draw_replay_dialog(framebuffer_t *framebuffer)
+{
+    uint16_t black = draw_rgb555(0U, 0U, 0U);
+    uint16_t white = draw_rgb555(255U, 255U, 255U);
+    uint16_t yellow = draw_rgb555(255U, 255U, 0U);
+    uint16_t green = draw_rgb555(35U, 210U, 70U);
+    uint16_t red = draw_rgb555(220U, 45U, 45U);
+
+    draw_fill_rectangle(framebuffer, PVZ_REPLAY_DIALOG_X,
+                        PVZ_REPLAY_DIALOG_Y, PVZ_REPLAY_DIALOG_WIDTH,
+                        PVZ_REPLAY_DIALOG_HEIGHT, black);
+    draw_border(framebuffer, PVZ_REPLAY_DIALOG_X, PVZ_REPLAY_DIALOG_Y,
+                PVZ_REPLAY_DIALOG_WIDTH, PVZ_REPLAY_DIALOG_HEIGHT, white);
+    draw_text(framebuffer, 94, 90, "PLAY AGAIN?", yellow, 2U);
+
+    draw_fill_rectangle(framebuffer, PVZ_REPLAY_YES_X, PVZ_REPLAY_YES_Y,
+                        PVZ_REPLAY_BUTTON_WIDTH, PVZ_REPLAY_BUTTON_HEIGHT,
+                        green);
+    draw_fill_rectangle(framebuffer, PVZ_REPLAY_NO_X, PVZ_REPLAY_NO_Y,
+                        PVZ_REPLAY_BUTTON_WIDTH, PVZ_REPLAY_BUTTON_HEIGHT,
+                        red);
+    draw_border(framebuffer, PVZ_REPLAY_YES_X, PVZ_REPLAY_YES_Y,
+                PVZ_REPLAY_BUTTON_WIDTH, PVZ_REPLAY_BUTTON_HEIGHT, white);
+    draw_border(framebuffer, PVZ_REPLAY_NO_X, PVZ_REPLAY_NO_Y,
+                PVZ_REPLAY_BUTTON_WIDTH, PVZ_REPLAY_BUTTON_HEIGHT, white);
+    draw_text(framebuffer, 82, 139, "YES", black, 2U);
+    draw_text(framebuffer, 208, 139, "NO", white, 2U);
 }
 
 renderer_t *renderer_create(uint16_t width, uint16_t height)
@@ -101,7 +129,7 @@ void renderer_render(renderer_t *renderer, const game_render_view_t *view)
         return;
     }
     framebuffer = &renderer->framebuffer;
-    draw_background(framebuffer);
+    copy_background(framebuffer);
 
     draw_asset(framebuffer, assets_menu_item(PLANT_SUNFLOWER),
                (screen_point_t){0, 0});
@@ -135,6 +163,7 @@ void renderer_render(renderer_t *renderer, const game_render_view_t *view)
     if (view->status == GAME_LOST) {
         draw_border(framebuffer, 0, 0, PVZ_SCREEN_WIDTH,
                     PVZ_SCREEN_HEIGHT, red);
+        draw_replay_dialog(framebuffer);
     }
 }
 

@@ -25,5 +25,7 @@ void draw_sprite(framebuffer_t *framebuffer, const uint8_t *sprite,
                  uint16_t sprite_width, uint16_t sprite_height, int x, int y);
 void draw_digit(framebuffer_t *framebuffer, int x, int y, int digit,
                 uint16_t color);
+void draw_text(framebuffer_t *framebuffer, int x, int y, const char *text,
+               uint16_t color, unsigned int scale);
 
 #endif

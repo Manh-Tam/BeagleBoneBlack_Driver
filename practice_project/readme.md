@@ -38,9 +38,15 @@ The application in `src/` uses one input worker and one owning game thread:
 
 Only the input worker accesses the touch descriptor. The main thread is the
 only writer of game state and the only thread that renders or presents frames.
-Game updates use a fixed 50 ms step with at most four catch-up updates per
+Game updates use a fixed 100 ms step with at most four catch-up updates per
 frame. Plants, zombies, and bullets use fixed-capacity pools; individual game
 entities are never heap allocated.
+
+Zombie pressure escalates indefinitely by spawn event: four events spawn one
+zombie each, the next four spawn two each, the next four spawn three each, and
+so on. Each event is still limited by the fixed 100-zombie pool. When a zombie
+reaches the house, the simulation pauses and displays a touchable PLAY AGAIN
+dialog. YES resets all game state and the wave counter; NO exits cleanly.
 
 ## Build and test
 

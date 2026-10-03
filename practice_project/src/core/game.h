@@ -24,7 +24,7 @@ typedef enum {
 } game_result_t;
 typedef enum {
     GAME_COMMAND_SELECT_PLANT = 0, GAME_COMMAND_PLACE_PLANT,
-    GAME_COMMAND_CLEAR_SELECTION, GAME_COMMAND_STOP
+    GAME_COMMAND_CLEAR_SELECTION, GAME_COMMAND_RESTART, GAME_COMMAND_STOP
 } game_command_type_t;
 
 typedef struct {

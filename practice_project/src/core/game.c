@@ -36,7 +36,9 @@ struct game {
     int sun;
     uint32_t passive_sun_elapsed_ms;
     uint32_t spawn_elapsed_ms;
+    uint32_t spawn_event_count;
     uint32_t random_state;
+    bool initial_spawn_pending;
     game_status_t status;
 };
 
@@ -106,6 +108,23 @@ static bool spawn_zombie(game_t *game)
     return false;
 }
 
+static void spawn_wave(game_t *game)
+{
+    size_t batch_size = (size_t)(game->spawn_event_count / 4U) + 1U;
+
+    if (batch_size > game->config.max_active_zombies) {
+        batch_size = game->config.max_active_zombies;
+    }
+    for (size_t i = 0U; i < batch_size; ++i) {
+        if (!spawn_zombie(game)) {
+            break;
+        }
+    }
+    if (game->spawn_event_count < UINT32_MAX) {
+        ++game->spawn_event_count;
+    }
+}
+
 static bool spawn_bullet(game_t *game, uint8_t row, uint8_t column)
 {
     for (size_t i = 0U; i < PVZ_MAX_BULLETS; ++i) {
@@ -143,11 +162,32 @@ static void update_spawning(game_t *game, uint32_t step_ms)
         return;
     }
 
+    if (game->initial_spawn_pending) {
+        game->initial_spawn_pending = false;
+        spawn_wave(game);
+        return;
+    }
+
     game->spawn_elapsed_ms += step_ms;
     while (game->spawn_elapsed_ms >= game->config.zombie_spawn_interval_ms) {
         game->spawn_elapsed_ms -= game->config.zombie_spawn_interval_ms;
-        (void)spawn_zombie(game);
+        spawn_wave(game);
     }
+}
+
+static void reset_game(game_t *game)
+{
+    memset(game->plants, 0, sizeof(game->plants));
+    memset(game->zombies, 0, sizeof(game->zombies));
+    memset(game->bullets, 0, sizeof(game->bullets));
+    game->selected_plant = PLANT_NONE;
+    game->sun = game->config.initial_sun;
+    game->passive_sun_elapsed_ms = 0U;
+    game->spawn_elapsed_ms = 0U;
+    game->spawn_event_count = 0U;
+    game->initial_spawn_pending = game->config.spawning_enabled &&
+                                  game->config.zombie_spawn_interval_ms > 0U;
+    game->status = GAME_RUNNING;
 }
 
 static void update_plants(game_t *game, uint32_t step_ms)
@@ -319,13 +359,8 @@ game_t *game_create(const game_config_t *config)
         return NULL;
     }
     game->config = *chosen;
-    game->sun = chosen->initial_sun;
-    game->selected_plant = PLANT_NONE;
     game->random_state = chosen->random_seed;
-    game->status = GAME_RUNNING;
-    if (chosen->spawning_enabled && chosen->zombie_spawn_interval_ms > 0U) {
-        game->spawn_elapsed_ms = chosen->zombie_spawn_interval_ms;
-    }
+    reset_game(game);
     return game;
 }
 
@@ -339,7 +374,9 @@ game_result_t game_apply_command(game_t *game, const game_command_t *command)
     if (game == NULL || command == NULL) {
         return GAME_INVALID_ARGUMENT;
     }
-    if (game->status != GAME_RUNNING && command->type != GAME_COMMAND_STOP) {
+    if (game->status != GAME_RUNNING &&
+        command->type != GAME_COMMAND_RESTART &&
+        command->type != GAME_COMMAND_STOP) {
         return GAME_NOT_RUNNING;
     }
 
@@ -353,6 +390,9 @@ game_result_t game_apply_command(game_t *game, const game_command_t *command)
         return GAME_OK;
     case GAME_COMMAND_CLEAR_SELECTION:
         game->selected_plant = PLANT_NONE;
+        return GAME_OK;
+    case GAME_COMMAND_RESTART:
+        reset_game(game);
         return GAME_OK;
     case GAME_COMMAND_STOP:
         game->status = GAME_STOPPED;

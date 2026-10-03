@@ -1,5 +1,6 @@
 #include "assets.h"
 
+#include "../../script/map.h"
 #include "../../script/move1.h"
 #include "../../script/move2.h"
 #include "../../script/move3.h"
@@ -13,6 +14,7 @@
 #include "../../script/sunflower_1.h"
 #include "../../script/sunflower_bloom.h"
 
+static const asset_image_t background = {image_map, 320U, 240U};
 static const asset_image_t menu_sunflower = {image_sunflower_1, 40U, 40U};
 static const asset_image_t menu_peashooter = {image_peashooter_item, 40U, 40U};
 static const asset_image_t plant_sunflower = {image_sunflower1, 40U, 40U};
@@ -25,6 +27,11 @@ static const asset_image_t zombie_hurt = {image_move3, 40U, 40U};
 static const asset_image_t zombie_dead = {image_move4, 40U, 40U};
 static const asset_image_t bullet_flying = {image_shot1, 40U, 40U};
 static const asset_image_t bullet_exploding = {image_sparkle, 40U, 40U};
+
+const asset_image_t *assets_background(void)
+{
+    return &background;
+}
 
 const asset_image_t *assets_menu_item(plant_type_t type)
 {
