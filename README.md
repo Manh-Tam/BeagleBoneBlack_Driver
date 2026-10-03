@@ -63,3 +63,9 @@ find out the issue due to incorrect pin connections
 
 7/16/2026
 drawed a chess board on the LCD.
+
+10/3/2026
+come back to the project after learning C++
+It's hard to start again so I decide to create a readme to describe the system.
+my target now is to refactor the project.
+
