@@ -1,24 +1,29 @@
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
-#include <stdio.h>
+#ifndef PVZ_CONFIG_H
+#define PVZ_CONFIG_H
 
-#define LCD_DEVICE                  "/dev/lcd"
-#define TOUCH_DEVICE                "/dev/touch"
-#define QUEUE_NAME                  "/touch_queue"
-#define MAX_BULLET                  100
-#define MAX_ZOMBIE                  5
-/*diplay size in bytes*/
-#define DISPLAY_SIZE                (320*240*2)
-#define GRID_ROW                    (5)
-#define GRID_COLUMN                 (8)
-#define SUNFLOWER_PRICE             (50)
-#define PEASHOOTER_PRICE            (100)
+#include <stddef.h>
+#include <stdint.h>
 
-typedef enum 
-{
-    GENERATE,
-    DISPLAY,
-    UPDATE,
-}program_state;
+#define PVZ_LCD_DEVICE "/dev/lcd"
+#define PVZ_TOUCH_DEVICE "/dev/touch"
+
+#define PVZ_SCREEN_WIDTH 320
+#define PVZ_SCREEN_HEIGHT 240
+#define PVZ_BYTES_PER_PIXEL 2
+#define PVZ_FRAMEBUFFER_STRIDE (PVZ_SCREEN_WIDTH * PVZ_BYTES_PER_PIXEL)
+#define PVZ_FRAMEBUFFER_SIZE ((size_t)PVZ_FRAMEBUFFER_STRIDE * PVZ_SCREEN_HEIGHT)
+
+#define PVZ_TILE_WIDTH 40
+#define PVZ_TILE_HEIGHT 40
+#define PVZ_GAME_ROWS 5
+#define PVZ_GAME_COLUMNS 8
+#define PVZ_MAX_PLANTS (PVZ_GAME_ROWS * PVZ_GAME_COLUMNS)
+#define PVZ_MAX_ZOMBIES 5
+#define PVZ_MAX_BULLETS 100
+
+#define PVZ_GAME_TICK_MS UINT32_C(50)
+#define PVZ_MAX_CATCH_UP_STEPS 4
+#define PVZ_INPUT_QUEUE_CAPACITY 16
+#define PVZ_INPUT_POLL_TIMEOUT_MS 100
 
 #endif

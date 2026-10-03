@@ -1,0 +1,1 @@
+cmd_/home/tamle/Workspace/BBB_driver/practice_project/kernel/Module.symvers := sed 's/ko$$/o/' /home/tamle/Workspace/BBB_driver/practice_project/kernel/modules.order | scripts/mod/modpost -m    -o /home/tamle/Workspace/BBB_driver/practice_project/kernel/Module.symvers -e    -T -

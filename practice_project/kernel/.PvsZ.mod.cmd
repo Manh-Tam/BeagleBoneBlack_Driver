@@ -1,0 +1,1 @@
+cmd_/home/tamle/Workspace/BBB_driver/practice_project/kernel/PvsZ.mod := { echo  /home/tamle/Workspace/BBB_driver/practice_project/kernel/PvsZ.o;  echo; } > /home/tamle/Workspace/BBB_driver/practice_project/kernel/PvsZ.mod

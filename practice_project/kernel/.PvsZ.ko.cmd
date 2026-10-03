@@ -1,0 +1,1 @@
+cmd_/home/tamle/Workspace/BBB_driver/practice_project/kernel/PvsZ.ko := arm-linux-gnueabihf-ld -r -EL -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/tamle/Workspace/BBB_driver/practice_project/kernel/PvsZ.ko /home/tamle/Workspace/BBB_driver/practice_project/kernel/PvsZ.o /home/tamle/Workspace/BBB_driver/practice_project/kernel/PvsZ.mod.o;  true

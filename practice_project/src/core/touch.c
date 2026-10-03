@@ -1,24 +1,34 @@
 #include "touch.h"
 
-void touch_data_to_coordinate(const struct touch_data *touch_data, uint16_t *x, uint16_t *y)
-{
-    /*calculate x pos*/
-    *x = (touch_data->x[0] << 8) | touch_data->x[1];
-    *x = (*x >> 3) & 0xfff;
-    if (*x < 300)
-        *x = 300;
-    if (*x > 3700)
-        *x = 3700;
-    *x = (*x - 300) * 100 / (3700 - 300);
-    *x = *x * (float)3.1;
+#include "../config.h"
 
-    /*calculate y pos*/
-    *y = (touch_data->y[0] << 8) | touch_data->y[1];
-    *y = (*y >> 3) & 0xfff;
-    if (*y < 400)
-        *y = 400;
-    if (*y > 3700)
-        *y = 3700;
-    *y = (*y - 400) * 100 / (3700 - 400);
-    *y = *y * (float)2.3;
+static uint16_t scale_axis(uint16_t raw, uint16_t minimum, uint16_t maximum,
+                           uint16_t screen_maximum)
+{
+    if (raw < minimum) {
+        raw = minimum;
+    } else if (raw > maximum) {
+        raw = maximum;
+    }
+    return (uint16_t)(((uint32_t)(raw - minimum) * screen_maximum) /
+                      (uint32_t)(maximum - minimum));
+}
+
+bool touch_decode_raw(const uint8_t raw[4], touch_event_t *event)
+{
+    uint16_t raw_x;
+    uint16_t raw_y;
+
+    if (raw == NULL || event == NULL) {
+        return false;
+    }
+
+    raw_y = (uint16_t)(((uint16_t)raw[0] << 8) | raw[1]);
+    raw_x = (uint16_t)(((uint16_t)raw[2] << 8) | raw[3]);
+    raw_x = (uint16_t)((raw_x >> 3) & UINT16_C(0x0fff));
+    raw_y = (uint16_t)((raw_y >> 3) & UINT16_C(0x0fff));
+
+    event->x = scale_axis(raw_x, 300U, 3700U, PVZ_SCREEN_WIDTH - 1U);
+    event->y = scale_axis(raw_y, 400U, 3700U, PVZ_SCREEN_HEIGHT - 1U);
+    return true;
 }

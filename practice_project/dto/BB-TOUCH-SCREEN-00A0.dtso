@@ -1,0 +1,71 @@
+# 0 "BB-TOUCH-SCREEN-00A0.dts"
+# 0 "<built-in>"
+# 0 "<command-line>"
+# 1 "BB-TOUCH-SCREEN-00A0.dts"
+/dts-v1/;
+/plugin/;
+# 1 "/home/tamle/linux/include/dt-bindings/interrupt-controller/irq.h" 1
+# 4 "BB-TOUCH-SCREEN-00A0.dts" 2
+
+/ {
+    compatible = "ti,am335x-bone-black";
+
+    fragment@0 {
+        target = <&ocp>;
+        __overlay__ {
+            P9_17_pinmux { status = "disabled"; };
+            P9_18_pinmux { status = "disabled"; };
+            P9_21_pinmux { status = "disabled"; };
+            P9_22_pinmux { status = "disabled"; };
+            P8_10_pinmux { status = "disabled"; };
+        };
+    };
+
+
+    fragment@1 {
+        target = <&am33xx_pinmux>;
+        __overlay__ {
+            my_spi0_pins: pinmux_my_spi0_pins {
+                pinctrl-single,pins = <
+                    0x150 0x30
+                    0x154 0x30
+                    0x158 0x10
+                    0x15c 0x10
+                    0x098 0x17
+                >;
+            };
+        };
+    };
+
+
+    fragment@2 {
+        target = <&spi0>;
+        __overlay__ {
+            status = "okay";
+            pinctrl-names = "default";
+            pinctrl-0 = <&my_spi0_pins>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+            cs-gpios = <0>, <&gpio2 4 0>;
+
+            display@0 {
+                compatible = "custom,st7789v";
+                reg = <0>;
+                spi-max-frequency = <24000000>;
+
+                dc-gpios = <&gpio1 17 0>;
+                rst-gpios = <&gpio1 16 0>;
+            };
+
+            touch@1 {
+                compatible = "custom,xpt2046";
+                reg = <1>;
+                spi-max-frequency = <24000000>;
+                tirq-gpios = <&gpio2 5 0>;
+                interrupt-parent = <&gpio2>;
+                interrupts = <5 2>;
+            };
+        };
+    };
+};

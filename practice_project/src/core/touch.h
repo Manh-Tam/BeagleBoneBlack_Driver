@@ -1,14 +1,11 @@
-#ifndef __TOUCH_H_
-#define __TOUCH_H_
+#ifndef PVZ_TOUCH_H
+#define PVZ_TOUCH_H
+
+#include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
-struct touch_data
-{
-    uint8_t y[2];
-    uint8_t x[2];
-};
+#include "pos.h"
 
-void touch_data_to_coordinate(const struct touch_data *touch_data, uint16_t *x, uint16_t *y);
+bool touch_decode_raw(const uint8_t raw[4], touch_event_t *event);
 
 #endif
